@@ -1,27 +1,32 @@
 # SkyCart
 
-Cloudflare Workers + D1 dropshipping store. Application credentials are managed as Cloudflare Worker Secrets; GitHub Actions is used only to deploy.
+Cloudflare Workers + D1 dropshipping store. Cloudflare Workers Builds connects directly to GitHub for build and deployment. Application credentials are stored as Cloudflare Worker Secrets.
 
-## GitHub deployment setup
+## One-time Cloudflare setup
 
-Add only these repository Actions secrets:
+1. In Cloudflare Dashboard, open **Workers & Pages → D1 SQL Database → Create database**.
+2. Create a database named **skycart-db**.
+3. Copy its database ID. Replace `REPLACE_WITH_D1_DATABASE_ID` in `wrangler.toml` with that exact ID and commit the change.
+4. Open **Workers & Pages → Create application → Connect to Git** (or open your existing Worker and configure Builds).
+5. Select the GitHub repository `paliparsa/skycart` and production branch `main`.
+6. Configure the build:
+   - Build command: `npm ci && npm run typecheck && npm test`
+   - Deploy command: `npm run deploy:cloudflare`
+   - Root directory: `/`
+   - Build output directory: leave empty (Wrangler publishes the Worker and `public/` assets).
+7. Ensure the Cloudflare Git integration has permission to deploy Workers and apply D1 migrations.
 
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_API_TOKEN` (Workers Scripts edit and D1 edit permissions)
+The deploy command applies pending remote D1 migrations first, then deploys the Worker. Cloudflare automatically starts a new build when changes are pushed to `main`. GitHub Actions remains responsible only for CI checks; it no longer deploys to Cloudflare.
 
-Push to `main` or manually run **Deploy SkyCart to Cloudflare**. The workflow provisions/reuses D1, applies migrations, and deploys the Worker and storefront. It does not read or overwrite application secrets.
+## Configure application secrets
 
-## Configure secrets in Cloudflare
-
-After the first successful deployment, open **Cloudflare Dashboard → Workers & Pages → skycart → Settings → Variables and Secrets** and add these as **Secret** values:
+After the first successful deployment, open **Workers & Pages → skycart → Settings → Variables and Secrets** and add these as **Secret** values:
 
 - `ADMIN_PASSWORD` — unique password of at least 20 characters.
 - `SUNSKY_API_KEY` — SUNSKY Open API key.
 - `SUNSKY_API_SECRET` — SUNSKY Open API secret.
 
-Save the settings. These values remain in Cloudflare and are not touched by later GitHub deployments. Rotate them from the same Cloudflare screen whenever needed.
-
-Attach your custom domain under **Settings → Domains & Routes**. The admin dashboard is at `/admin`.
+Save the settings. These values remain in Cloudflare and are not committed to GitHub. Attach your custom domain under **Settings → Domains & Routes**. The admin dashboard is at `/admin`.
 
 ## Admin and catalogue
 
