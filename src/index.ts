@@ -6,7 +6,7 @@ const clean = (v:unknown,max=300) => typeof v==="string" ? v.trim().replace(/[<>
 const emailOK = (s:string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) && s.length<=254;
 async function api(req:Request,env:Env):Promise<Response>{
   const url=new URL(req.url), path=url.pathname;
-  if(req.method==="OPTIONS") return json({},204);
+  if(req.method==="OPTIONS") return new Response(null,{status:204,headers:{"access-control-allow-origin":"*","access-control-allow-methods":"GET, POST, OPTIONS","access-control-allow-headers":"content-type, idempotency-key","access-control-max-age":"86400"}});
   if(path==="/api/health"&&req.method==="GET"){
     try { await env.DB.prepare("SELECT 1").first(); return json({ok:true,service:"skycart",database:"ok",supplier:"disabled-until-verified",payments:"disabled"}); }
     catch { return json({ok:false,service:"skycart",database:"unavailable",hint:"Apply the D1 migration."},503); }
