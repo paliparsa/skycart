@@ -190,7 +190,7 @@ async function publicApi(req:Request,env:Env):Promise<Response>{
   if((found.results||[]).length!==ids.length)return fail("One or more products are unavailable.",409);
   const currencies=new Set((found.results||[]).map((p:any)=>p.currency));if(currencies.size!==1)return fail("Mixed-currency carts are not supported.",409);
   const map=new Map((found.results||[]).map((p:any)=>[p.id,p]));
-  const lines=ids.map(id=>{const p:any=map.get(id);return{productId:id,title:p.title,supplierSku:p.supplier_sku,unitPriceCents:p.price_cents,supplierCostCents:p.supplier_cost_cents,quantity:qty.get(id)};});
+  const lines=ids.map(id=>{const p:any=map.get(id);return{productId:id,title:p.title,supplierSku:p.supplier_sku,unitPriceCents:p.price_cents,supplierCostCents:p.supplier_cost_cents,quantity:qty.get(id)!};});
   const subtotal=lines.reduce((s,l)=>s+l.unitPriceCents*l.quantity,0);if(!Number.isSafeInteger(subtotal)||subtotal<=0||subtotal>5000000)return fail("Order total outside supported range.",422);
   let freight:any;try{const quote:any=await sunsky(env,"order!getPricesAndFreights.do",{countryId:String(countryId),state,...sunskyItems(lines.map(l=>({itemNo:l.supplierSku,qty:l.quantity})))});freight=(quote?.freightList||[]).find((f:any)=>Number(f.id)===shippingWayId);if(!freight) return fail("Shipping method is no longer available. Refresh the quote.",409);}catch(e){return fail(clean(e instanceof Error?e.message:"Could not verify shipping",300),502);}
   const shipping=Math.max(0,Math.round(Number(freight.shippingCost||0)*100)),total=subtotal+shipping;if(!Number.isSafeInteger(total)||total>10000000)return fail("Order total outside supported range.",422);
@@ -209,7 +209,7 @@ export default {
  async fetch(req:Request,env:Env):Promise<Response>{
   const u=new URL(req.url);
   if(u.pathname==="/api"||u.pathname.startsWith("/api/"))return publicApi(req,env);
-  if(u.pathname==="/admin")return Response.redirect(new URL("/admin.html",u),302);
+  if(u.pathname==="/admin")return Response.redirect(new URL("/admin.html",u).toString(),302);
   const res=await env.ASSETS.fetch(req),h=new Headers(res.headers);
   h.set("x-content-type-options","nosniff");h.set("referrer-policy","strict-origin-when-cross-origin");h.set("x-frame-options","DENY");h.set("permissions-policy","camera=(), microphone=(), geolocation=()");
   if(u.pathname.endsWith(".html"))h.set("content-security-policy","default-src 'self'; img-src 'self' https://images.unsplash.com https://img.myipadbox.com data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'");
