@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — 2026-10-30
+
+- Moved admin and SUNSKY credentials from GitHub Actions to Cloudflare Worker Secrets.
+- Reduced GitHub deployment requirements to Cloudflare account ID and deployment API token.
+- Deployments no longer overwrite application secrets stored in Cloudflare.
+- Updated setup documentation.
+
 ## 0.3.0 — 2026-10-29
 
 - Added GitHub Actions deployment to Cloudflare Workers.
