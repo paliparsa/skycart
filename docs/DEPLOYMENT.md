@@ -5,7 +5,7 @@
 1. Create a Cloudflare D1 database named `skycart-db`.
 2. Copy its database ID into `wrangler.toml`, replacing `REPLACE_WITH_D1_DATABASE_ID`, and commit the change.
 3. Connect `paliparsa/skycart` to Cloudflare Workers Builds with production branch `main`.
-4. Set the build command to `npm ci && npm run typecheck && npm test`.
+4. Set the build command to `npm install && npm run typecheck && npm test`.
 5. Set the deploy command to `npm run deploy:cloudflare`.
 6. Ensure the Cloudflare Git integration can deploy Workers and apply D1 migrations.
 7. After the first successful deploy, add the three application credentials below as Worker Secrets.
