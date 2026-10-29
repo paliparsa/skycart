@@ -1,29 +1,38 @@
 # SkyCart
 
-Cloudflare Workers + D1 dropshipping store, with automatic D1 provisioning, migrations, Worker secret setup, scheduled SUNSKY product sync, and a password-protected admin dashboard.
+Cloudflare Workers + D1 dropshipping store. Application credentials are managed as Cloudflare Worker Secrets; GitHub Actions is used only to deploy.
 
-## One-time GitHub setup
+## GitHub deployment setup
 
-Open Settings → Secrets and variables → Actions and add:
+Add only these repository Actions secrets:
 
-- CLOUDFLARE_ACCOUNT_ID (required)
-- CLOUDFLARE_API_TOKEN (required; account-scoped token with Workers Scripts edit, D1 edit, and Workers Routes/custom domains permissions if you want to manage routes via API)
-- ADMIN_PASSWORD (required; unique password, at least 20 characters)
-- SUNSKY_API_KEY (optional until your SUNSKY API access is approved)
-- SUNSKY_API_SECRET (optional until your SUNSKY API access is approved)
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN` (Workers Scripts edit and D1 edit permissions)
 
-Push to main or run the Deploy SkyCart to Cloudflare workflow manually. The workflow creates or reuses D1 database skycart-db, updates the binding, applies migrations, sets Worker secrets, and deploys the Worker and storefront assets. Then attach your custom domain in Cloudflare Workers → skycart → Settings → Domains & Routes.
+Push to `main` or manually run **Deploy SkyCart to Cloudflare**. The workflow provisions/reuses D1, applies migrations, and deploys the Worker and storefront. It does not read or overwrite application secrets.
 
-## Admin
+## Configure secrets in Cloudflare
 
-Visit /admin on your domain. Sign in using ADMIN_PASSWORD. Configure SUNSKY API key and secret as GitHub Actions secrets, then deploy again. Use Sync SUNSKY products to import the first page. A scheduled sync runs every 15 minutes and processes additional pages in batches. Product markup can be adjusted per product in the admin panel.
+After the first successful deployment, open **Cloudflare Dashboard → Workers & Pages → skycart → Settings → Variables and Secrets** and add these as **Secret** values:
+
+- `ADMIN_PASSWORD` — unique password of at least 20 characters.
+- `SUNSKY_API_KEY` — SUNSKY Open API key.
+- `SUNSKY_API_SECRET` — SUNSKY Open API secret.
+
+Save the settings. These values remain in Cloudflare and are not touched by later GitHub deployments. Rotate them from the same Cloudflare screen whenever needed.
+
+Attach your custom domain under **Settings → Domains & Routes**. The admin dashboard is at `/admin`.
+
+## Admin and catalogue
+
+Sign in at `/admin` with `ADMIN_PASSWORD`. Use **Sync SUNSKY products** to import the first page. Scheduled catalogue sync runs every 15 minutes. Adjust product markup in the admin panel.
 
 ## Orders and payments
 
-Customer checkout asks SUNSKY for shipping methods and recalculates shipping server-side. Orders remain pending_payment. Only after you independently verify the customer's payment should you click Confirm paid & submit in the admin panel. This submits the order to SUNSKY using your SUNSKY account balance (useBalanceOnly=true). A failed/ambiguous supplier response is blocked from automatic retry to reduce duplicate orders; verify the supplier portal before taking further action.
+Checkout obtains SUNSKY shipping methods and revalidates shipping server-side. Orders remain `pending_payment` until you independently verify payment and select **Confirm paid & submit** in the admin panel. Supplier orders use your SUNSKY account balance (`useBalanceOnly=true`). Ambiguous supplier responses are blocked from automatic retry to reduce duplicate orders; verify the SUNSKY portal before taking further action.
 
-No card/crypto gateway is enabled. The storefront does not pretend to collect payments.
+No card or crypto payment gateway is enabled. The storefront does not pretend to collect payments.
 
 ## Important
 
-SUNSKY Open API access must be enabled for your supplier account by SUNSKY. API signing follows the official Open API documentation. Product images are imported only when the API provides a valid HTTPS image URL. Review product costs, markup, inventory and shipping options before launch. See docs/DEPLOYMENT.md.
+SUNSKY must enable Open API access for your supplier account. Review product costs, markup, inventory, and shipping options before launch. See `docs/DEPLOYMENT.md`.
