@@ -19,11 +19,8 @@ jobs:
       - run: npm install
       - run: npm run typecheck
       - run: npm test
-      - name: Provision D1, apply migrations, set Worker secrets and deploy
+      - name: Provision D1, apply migrations and deploy
         run: node scripts/deploy.mjs
         env:
-          CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
-          ADMIN_PASSWORD: \${{ secrets.ADMIN_PASSWORD }}
-          SUNSKY_API_KEY: \${{ secrets.SUNSKY_API_KEY }}
-          SUNSKY_API_SECRET: \${{ secrets.SUNSKY_API_SECRET }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
