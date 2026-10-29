@@ -1,0 +1,20 @@
+{
+  "name": "skycart",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:create": "wrangler d1 create skycart-db",
+    "db:migrate:local": "wrangler d1 migrations apply skycart-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply skycart-db --remote",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20261020.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.45.0"
+  }
+}
