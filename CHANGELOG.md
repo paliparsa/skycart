@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 — 2026-10-30
+
+- Switched production deployment from GitHub Actions to Cloudflare Workers Builds connected directly to GitHub.
+- Removed the GitHub workflow that provisioned D1 and deployed the Worker using Cloudflare API credentials.
+- Added a Cloudflare-native deploy command that applies remote D1 migrations before Wrangler deployment.
+- Documented one-time D1 creation, repository connection, build/deploy commands, and Worker secret configuration.
+- Kept GitHub Actions for CI verification only.
+
 ## 0.4.0 — 2026-10-30
 
 - Moved admin and SUNSKY credentials from GitHub Actions to Cloudflare Worker Secrets.
