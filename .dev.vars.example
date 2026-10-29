@@ -1,0 +1,6 @@
+# Local-only placeholders. Do not commit real credentials.
+SUNSKY_API_BASE_URL=
+SUNSKY_API_KEY=
+SUNSKY_API_SECRET=
+PAYMENT_PROVIDER=
+PAYMENT_API_KEY=
