@@ -34,7 +34,7 @@ async function sunsky(env:Env,endpoint:string,params:Record<string,string>={}):P
 }
 function slugify(s:string){return s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,90)||crypto.randomUUID().slice(0,8);}
 function safeImage(v:any){const s=typeof v==="string"?v:"";return /^https:\/\/[a-z0-9.-]+\//i.test(s)?s:"";}
-function sunskyItems(items:Array<{itemNo:string;qty:number}>){const p:Record<string,string>={};for(let i=0;i<items.length;i++){p["items.#.itemNo"]=(p["items.#.itemNo"]?p["items.#.itemNo"]+";":"")+items[i].itemNo;p["items.#.qty"]=(p["items.#.qty"]?p["items.#.qty"]+";":"")+String(items[i].qty);}return p;}
+function sunskyItems(items:Array<{itemNo:string;qty:number}>){const p:Record<string,string>={};for(let i=0;i<items.length;i++){p["items."+i+".itemNo"]=items[i].itemNo;p["items."+i+".qty"]=String(items[i].qty);}return p;}
 async function syncPage(env:Env,page:number,pageSize=100){
  const data:any=await sunsky(env,"product!search.do",{lang:"en",page:String(page),pageSize:String(pageSize),status:"-1"});
  const rows:any[]=Array.isArray(data?.result)?data.result:Array.isArray(data?.result?.result)?data.result.result:[];
