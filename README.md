@@ -10,7 +10,7 @@ Cloudflare Workers + D1 dropshipping store. Cloudflare Workers Builds connects d
 4. Open **Workers & Pages → Create application → Connect to Git** (or open your existing Worker and configure Builds).
 5. Select the GitHub repository `paliparsa/skycart` and production branch `main`.
 6. Configure the build:
-   - Build command: `npm ci && npm run typecheck && npm test`
+   - Build command: `npm install && npm run typecheck && npm test`
    - Deploy command: `npm run deploy:cloudflare`
    - Root directory: `/`
    - Build output directory: leave empty (Wrangler publishes the Worker and `public/` assets).
