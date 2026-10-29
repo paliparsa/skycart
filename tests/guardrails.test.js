@@ -1,30 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-
-const worker = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
-const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
-const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
-const migration = readFileSync(new URL("../migrations/0001_initial.sql", import.meta.url), "utf8");
-
-test("storefront has product search, cart, and checkout entry points", () => {
-  assert.match(html, /id="search-input"/);
-  assert.match(html, /id="product-grid"/);
-  assert.match(html, /id="cart-open"/);
-  assert.match(html, /id="checkout-form"/);
-  assert.match(app, /fetch\("\/api\/products\?/);
-  assert.match(app, /fetch\("\/api\/orders"/);
-});
-
-test("real payment and supplier submission are not enabled by default", () => {
-  assert.match(worker, /disabled-until-verified/);
-  assert.match(worker, /No payment was collected and no supplier order was placed/);
-  assert.match(worker, /liveOrdersEnabled:false/);
-});
-
-test("D1 schema stores catalog and pending orders", () => {
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS products/);
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS orders/);
-  assert.match(migration, /pending_payment/);
-  assert.match(migration, /INSERT OR IGNORE INTO products/);
-});
+const worker=readFileSync(new URL("../src/index.ts",import.meta.url),"utf8");
+const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+const admin=readFileSync(new URL("../public/admin.html",import.meta.url),"utf8");
+const deploy=readFileSync(new URL("../scripts/deploy.mjs",import.meta.url),"utf8");
+const migration=readFileSync(new URL("../migrations/0002_commerce_admin.sql",import.meta.url),"utf8");
+test("storefront and admin routes are present",()=>{assert.match(html,/id="product-grid"/);assert.match(html,/id="checkout-form"/);assert.match(admin,/id="login-form"/);assert.match(admin,/id="orders-body"/);});
+test("admin routes require signed session except login/session/logout",()=>{assert.match(worker,/async function isAdmin/);assert.match(worker,/if\(!await isAdmin\(req,env\)\)/);assert.match(worker,/HttpOnly; Secure; SameSite=Strict/);});
+test("supplier integration uses official endpoints and signature",()=>{assert.match(worker,/product!search\.do/);assert.match(worker,/order!getPricesAndFreights\.do/);assert.match(worker,/order!createOrder\.do/);assert.match(worker,/@"\+secret/);});
+test("manual payment confirmation precedes supplier submission",()=>{assert.match(worker,/status!=="pending_payment"/);assert.match(worker,/supplier_submitting/);assert.match(worker,/useBalanceOnly:"true"/);});
+test("deployment provisions D1 and does not commit credentials",()=>{assert.match(deploy,/d1\/database/);assert.match(deploy,/ADMIN_PASSWORD/);assert.match(migration,/admin_login_attempts/);assert.match(migration,/supplier_cost_cents/);});

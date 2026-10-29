@@ -1,22 +1,29 @@
 # SkyCart
 
-A Cloudflare-first branded dropshipping storefront starter using Workers, D1 and static assets.
+Cloudflare Workers + D1 dropshipping store, with automatic D1 provisioning, migrations, Worker secret setup, scheduled SUNSKY product sync, and a password-protected admin dashboard.
 
-## Safety/status
-The storefront, catalog API and D1-backed demo-order flow are included. **Live SUNSKY ordering and payment capture are deliberately disabled** until official seller API documentation, authentication/signature rules, shipping logic and a payment provider are verified. Demo checkout records `pending_payment`; it does not charge a card or submit a supplier order.
+## One-time GitHub setup
 
-## Local setup
-1. Install Node.js 20+.
-2. `npm install`
-3. Run `npx wrangler d1 create skycart-db`; copy the returned ID into `wrangler.toml`.
-4. `npm run db:migrate:local`
-5. `npm run dev`
+Open Settings → Secrets and variables → Actions and add:
 
-## API
-- `GET /api/health`
-- `GET /api/products?q=&category=&limit=`
-- `GET /api/products/:slug`
-- `POST /api/orders` — validates prices server-side and stores pending order only
-- `GET /api/orders/:id` — status only, no personal data
+- CLOUDFLARE_ACCOUNT_ID (required)
+- CLOUDFLARE_API_TOKEN (required; account-scoped token with Workers Scripts edit, D1 edit, and Workers Routes/custom domains permissions if you want to manage routes via API)
+- ADMIN_PASSWORD (required; unique password, at least 20 characters)
+- SUNSKY_API_KEY (optional until your SUNSKY API access is approved)
+- SUNSKY_API_SECRET (optional until your SUNSKY API access is approved)
 
-Read [deployment notes](docs/DEPLOYMENT.md) before going live. Sample products/prices are illustrative; never publish them as supplier-confirmed inventory.
+Push to main or run the Deploy SkyCart to Cloudflare workflow manually. The workflow creates or reuses D1 database skycart-db, updates the binding, applies migrations, sets Worker secrets, and deploys the Worker and storefront assets. Then attach your custom domain in Cloudflare Workers → skycart → Settings → Domains & Routes.
+
+## Admin
+
+Visit /admin on your domain. Sign in using ADMIN_PASSWORD. Configure SUNSKY API key and secret as GitHub Actions secrets, then deploy again. Use Sync SUNSKY products to import the first page. A scheduled sync runs every 15 minutes and processes additional pages in batches. Product markup can be adjusted per product in the admin panel.
+
+## Orders and payments
+
+Customer checkout asks SUNSKY for shipping methods and recalculates shipping server-side. Orders remain pending_payment. Only after you independently verify the customer's payment should you click Confirm paid & submit in the admin panel. This submits the order to SUNSKY using your SUNSKY account balance (useBalanceOnly=true). A failed/ambiguous supplier response is blocked from automatic retry to reduce duplicate orders; verify the supplier portal before taking further action.
+
+No card/crypto gateway is enabled. The storefront does not pretend to collect payments.
+
+## Important
+
+SUNSKY Open API access must be enabled for your supplier account by SUNSKY. API signing follows the official Open API documentation. Product images are imported only when the API provides a valid HTTPS image URL. Review product costs, markup, inventory and shipping options before launch. See docs/DEPLOYMENT.md.

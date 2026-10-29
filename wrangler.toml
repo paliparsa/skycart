@@ -11,8 +11,8 @@ not_found_handling = "single-page-application"
 [[d1_databases]]
 binding = "DB"
 database_name = "skycart-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "AUTO_PROVISIONED_BY_DEPLOY_SCRIPT"
 migrations_dir = "migrations"
 
 [triggers]
-crons = ["17 * * * *"]
+crons = ["*/15 * * * *"]
