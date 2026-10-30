@@ -11,7 +11,7 @@
     "db:create": "wrangler d1 create skycart-db",
     "db:migrate:local": "wrangler d1 migrations apply skycart-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply skycart-db --remote",
-    "test": "node --test"
+    "test": "node --check scripts/deploy-cloudflare.mjs && node --test"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261028.1",
