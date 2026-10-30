@@ -11,6 +11,27 @@ const fail=(message:string,status=400)=>json({error:message},status);
 const clean=(v:unknown,max=300)=>typeof v==="string"?v.trim().replace(/[<>\u0000-\u001f]/g,"").slice(0,max):"";
 const emailOK=(s:string)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)&&s.length<=254;
 const hasSunsky=(e:Env)=>!!(e.SUNSKY_API_KEY&&e.SUNSKY_API_SECRET);
+async function settingsCryptoKey(env:Env){
+ if(!env.ADMIN_PASSWORD)throw new Error("Admin password is not configured.");
+ const material=await crypto.subtle.importKey("raw",new TextEncoder().encode(env.ADMIN_PASSWORD),"PBKDF2",false,["deriveKey"]);
+ return crypto.subtle.deriveKey({name:"PBKDF2",salt:new TextEncoder().encode("skycart:sunsky-settings:v1"),iterations:120000,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function encryptSettings(env:Env,value:string){
+ const iv=crypto.getRandomValues(new Uint8Array(12)),key=await settingsCryptoKey(env);
+ const cipher=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(value));
+ return "v1."+b64url(iv)+"."+b64url(new Uint8Array(cipher));
+}
+async function decryptSettings(env:Env,value:string){
+ const parts=value.split(".");if(parts.length!==3||parts[0]!=="v1")throw new Error("Stored SUNSKY credentials have an unsupported format.");
+ const key=await settingsCryptoKey(env),plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:fromB64url(parts[1])},key,fromB64url(parts[2]));
+ return new TextDecoder().decode(plain);
+}
+async function sunskyCredentials(env:Env){
+ const row=await env.DB.prepare("SELECT value FROM app_settings WHERE key='sunsky_credentials'").first<any>();
+ if(row?.value){try{const saved=JSON.parse(await decryptSettings(env,String(row.value)));if(saved?.apiKey&&saved?.apiSecret)return {apiKey:String(saved.apiKey),apiSecret:String(saved.apiSecret),source:"admin"};}catch{throw new Error("Could not decrypt saved SUNSKY credentials. Check whether ADMIN_PASSWORD has changed.");}}
+ return {apiKey:env.SUNSKY_API_KEY||"",apiSecret:env.SUNSKY_API_SECRET||"",source:"worker"};
+}
+async function sunskyConfigured(env:Env){const c=await sunskyCredentials(env);return !!(c.apiKey&&c.apiSecret);}
 function md5(input:string):string{
  const bytes=new TextEncoder().encode(input),len=bytes.length,buf=new Uint8Array((((len+8)>>>6)+1)*64);buf.set(bytes);buf[len]=128;
  const dv=new DataView(buf.buffer);dv.setUint32(buf.length-8,(len*8)>>>0,true);dv.setUint32(buf.length-4,Math.floor(len/0x20000000),true);
@@ -24,8 +45,9 @@ function md5(input:string):string{
 }
 function sunskySignature(params:Record<string,string>,secret:string){const joined=Object.keys(params).sort().map(k=>params[k]).join("")+"@"+secret;return md5(joined);}
 async function sunsky(env:Env,endpoint:string,params:Record<string,string>={}):Promise<any>{
- if(!hasSunsky(env))throw new Error("SUNSKY API secrets are not configured.");
- const values={...params,key:env.SUNSKY_API_KEY!};const signature=sunskySignature(values,env.SUNSKY_API_SECRET!);
+ const credentials=await sunskyCredentials(env);
+ if(!credentials.apiKey||!credentials.apiSecret)throw new Error("SUNSKY API credentials are not configured. Add them in Admin → API Settings.");
+ const values={...params,key:credentials.apiKey};const signature=sunskySignature(values,credentials.apiSecret);
  const body=new URLSearchParams({...values,signature});
  const res=await fetch("https://open.sunsky-online.com/openapi/"+endpoint,{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body,signal:AbortSignal.timeout(20000)});
  if(!res.ok)throw new Error("SUNSKY returned HTTP "+res.status);
@@ -85,9 +107,27 @@ async function adminApi(req:Request,env:Env):Promise<Response>{
   return json({ok:true,expiresAt:exp},200,{"set-cookie":"skycart_admin="+encodeURIComponent(token)+"; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=43200"});
  }
  if(path==="/api/admin/logout"&&req.method==="POST")return json({ok:true},200,{"set-cookie":"skycart_admin=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0"});
- if(path==="/api/admin/session"&&req.method==="GET")return json({authenticated:await isAdmin(req,env),configured:!!env.ADMIN_PASSWORD,supplierConfigured:hasSunsky(env)});
+ if(path==="/api/admin/session"&&req.method==="GET")return json({authenticated:await isAdmin(req,env),configured:!!env.ADMIN_PASSWORD,supplierConfigured:await sunskyConfigured(env)});
  if(!await isAdmin(req,env))return fail("Authentication required.",401);
  if(!originOK(req))return fail("Origin rejected.",403);
+ if(path==="/api/admin/settings/sunsky"&&req.method==="GET"){
+  const credentials=await sunskyCredentials(env);
+  return json({configured:!!(credentials.apiKey&&credentials.apiSecret),source:credentials.source,apiKeyMasked:credentials.apiKey?credentials.apiKey.slice(0,3)+"••••"+credentials.apiKey.slice(-3):""});
+ }
+ if(path==="/api/admin/settings/sunsky"&&req.method==="PUT"){
+  let d:any;try{d=await req.json()}catch{return fail("Invalid JSON.");}
+  const apiKey=typeof d?.apiKey==="string"?d.apiKey.trim():"",apiSecret=typeof d?.apiSecret==="string"?d.apiSecret.trim():"";
+  if(apiKey.length<4||apiKey.length>200||apiSecret.length<8||apiSecret.length>300)return fail("Enter a valid SUNSKY API key and API secret.");
+  try{
+   const encrypted=await encryptSettings(env,JSON.stringify({apiKey,apiSecret}));
+   await env.DB.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES('sunsky_credentials',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(encrypted).run();
+   return json({ok:true,configured:true,apiKeyMasked:apiKey.slice(0,3)+"••••"+apiKey.slice(-3)});
+  }catch(e){return fail(clean(e instanceof Error?e.message:"Could not save SUNSKY credentials.",250),500);}
+ }
+ if(path==="/api/admin/settings/sunsky/test"&&req.method==="POST"){
+  try{await sunsky(env,"product!search.do",{lang:"en",page:"1",pageSize:"1",status:"-1"});return json({ok:true,message:"SUNSKY API connection successful."});}
+  catch(e){return fail(clean(e instanceof Error?e.message:"SUNSKY connection test failed.",300),502);}
+ }
  if(path==="/api/admin/summary"&&req.method==="GET"){
   const [products,orders,pending,failed,latest]=await Promise.all([
    env.DB.prepare("SELECT COUNT(*) n FROM products WHERE active=1 AND supplier_sku IS NOT NULL").first<any>(),
@@ -97,7 +137,7 @@ async function adminApi(req:Request,env:Env):Promise<Response>{
    env.DB.prepare("SELECT id,status,total_cents,currency,customer_name,customer_email,created_at FROM orders ORDER BY created_at DESC LIMIT 8").all<any>()
   ]);
   const sync=await env.DB.prepare("SELECT status,message,started_at,finished_at FROM sync_runs ORDER BY id DESC LIMIT 1").first<any>();
-  return json({products:products?.n||0,orders:orders?.n||0,pending:pending?.n||0,failed:failed?.n||0,latest:latest.results||[],sync,supplierConfigured:hasSunsky(env)});
+  return json({products:products?.n||0,orders:orders?.n||0,pending:pending?.n||0,failed:failed?.n||0,latest:latest.results||[],sync,supplierConfigured:await sunskyConfigured(env)});
  }
  if(path==="/api/admin/products"&&req.method==="GET"){
   const q=clean(u.searchParams.get("q"),100),where=q?"WHERE title LIKE ? OR supplier_sku LIKE ?":"";
@@ -115,7 +155,7 @@ async function adminApi(req:Request,env:Env):Promise<Response>{
   return json({ok:true,markupPercent:m,priceCents:price});
  }
  if(path==="/api/admin/sync"&&req.method==="POST"){
-  if(!hasSunsky(env))return fail("Set SUNSKY_API_KEY and SUNSKY_API_SECRET in Worker secrets, then redeploy.",503);
+  if(!await sunskyConfigured(env))return fail("Configure SUNSKY API credentials in Admin → API Settings first.",503);
   try{const result=await syncPage(env,1,100);return json({ok:true,...result});}catch(e){const msg=clean(e instanceof Error?e.message:"Supplier sync failed",300);await env.DB.prepare("INSERT INTO sync_runs(status,message,finished_at) VALUES('error',?,CURRENT_TIMESTAMP)").bind(msg).run();return fail(msg,502);}
  }
  if(path==="/api/admin/orders"&&req.method==="GET"){
@@ -124,7 +164,7 @@ async function adminApi(req:Request,env:Env):Promise<Response>{
  }
  const confirm=path.match(/^\/api\/admin\/orders\/([0-9a-f-]{36})\/confirm-and-submit$/i);
  if(confirm&&req.method==="POST"){
-  if(!hasSunsky(env))return fail("SUNSKY API secrets are not configured.",503);
+  if(!await sunskyConfigured(env))return fail("SUNSKY API credentials are not configured.",503);
   const o=await env.DB.prepare("SELECT * FROM orders WHERE id=?").bind(confirm[1]).first<any>();if(!o)return fail("Order not found.",404);
   if(o.status!=="pending_payment"&&o.status!=="supplier_failed")return fail("Order cannot be submitted from status "+o.status+".",409);
   if(o.status==="supplier_failed")return fail("Supplier response previously failed or was ambiguous. Verify the order in SUNSKY before retrying to avoid a duplicate order.",409);
@@ -152,7 +192,7 @@ async function publicApi(req:Request,env:Env):Promise<Response>{
  const u=new URL(req.url),path=u.pathname;
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"allow":"GET, POST, PATCH, OPTIONS"}});
  if(path==="/api/health"&&req.method==="GET"){
-  try{await env.DB.prepare("SELECT 1").first();return json({ok:true,service:"skycart",database:"ok",supplierConfigured:hasSunsky(env),adminConfigured:!!env.ADMIN_PASSWORD});}
+  try{await env.DB.prepare("SELECT 1").first();return json({ok:true,service:"skycart",database:"ok",supplierConfigured:await sunskyConfigured(env),adminConfigured:!!env.ADMIN_PASSWORD});}
   catch{return json({ok:false,service:"skycart",database:"unavailable",hint:"Check Cloudflare Workers Builds deployment logs and D1 migrations."},503);}
  }
  if(path.startsWith("/api/admin/"))return adminApi(req,env);
@@ -216,7 +256,7 @@ export default {
   return new Response(res.body,{status:res.status,statusText:res.statusText,headers:h});
  },
  async scheduled(_event:ScheduledController,env:Env):Promise<void>{
-  if(!hasSunsky(env))return;
+  if(!await sunskyConfigured(env))return;
   try{
    const row=await env.DB.prepare("SELECT value FROM app_settings WHERE key='sunsky_sync_page'").first<any>();let page=Math.max(1,Number(row?.value||1)),done=0,next=page;
    for(let i=0;i<3;i++){const r=await syncPage(env,next,100);done+=r.count;next=(next>=10000||r.count===0)?1:next+1;if(r.count===0)break;}
