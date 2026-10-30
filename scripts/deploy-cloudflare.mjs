@@ -24,7 +24,7 @@ function wrangler(args, { capture = false } = {}) {
 }
 
 function parseJsonOutput(output) {
-  const start = output.search(/[\\[{]/);
+  const start = output.search(/[\[{]/);
   if (start < 0) throw new Error("Wrangler D1 list did not return JSON.");
   return JSON.parse(output.slice(start));
 }
@@ -49,14 +49,14 @@ function findDatabase(payload) {
 
 async function writeDatabaseId(databaseId) {
   const config = await readFile(CONFIG_PATH, "utf8");
-  const sections = config.split(/(?=^\\[\\[d1_databases\\]\\]\\s*$)/m);
+  const sections = config.split(/(?=^\[\[d1_databases\]\]\s*$)/m);
   let updated = false;
 
   const next = sections.map((section) => {
-    if (!/^\\[\\[d1_databases\\]\\]/m.test(section)) return section;
-    const nameMatch = section.match(/^database_name\\s*=\\s*["']([^"']+)["']/m);
+    if (!/^\[\[d1_databases\]\]/m.test(section)) return section;
+    const nameMatch = section.match(/^database_name\s*=\\s*["']([^"']+)["']/m);
     if (nameMatch?.[1] !== DATABASE_NAME) return section;
-    if (/^database_id\\s*=\\s*["'][^"']*["']/m.test(section)) {
+    if (/^database_id\s*=\\s*["'][^"']*["']/m.test(section)) {
       updated = true;
       return section.replace(/^database_id\\s*=\\s*["'][^"']*["']/m, \`database_id = "\${databaseId}"\`);
     }
