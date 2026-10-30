@@ -1,43 +1,116 @@
 # SkyCart
 
-Cloudflare Workers + D1 dropshipping store. Cloudflare Workers Builds connects directly to GitHub for build and deployment. Application credentials are stored as Cloudflare Worker Secrets.
+A global dropshipping storefront powered by **Cloudflare Workers**, **D1**, and the **SUNSKY Open API**.
 
-## One-time Cloudflare setup
+Production deployments run through **Cloudflare Workers Builds**, connected directly to this GitHub repository. GitHub Actions is used for code verification only; no Cloudflare deployment token is required in GitHub.
 
-1. In Cloudflare Dashboard, open **Workers & Pages → D1 SQL Database → Create database**.
-2. Create a database named **skycart-db**.
-3. Copy its database ID. Replace `REPLACE_WITH_D1_DATABASE_ID` in `wrangler.toml` with that exact ID and commit the change.
-4. Open **Workers & Pages → Create application → Connect to Git** (or open your existing Worker and configure Builds).
-5. Select the GitHub repository `paliparsa/skycart` and production branch `main`.
-6. Configure the build:
-   - Build command: `npm install && npm run typecheck && npm test`
-   - Deploy command: `npm run deploy:cloudflare`
-   - Root directory: `/`
-   - Build output directory: leave empty (Wrangler publishes the Worker and `public/` assets).
-7. Ensure the Cloudflare Git integration has permission to deploy Workers and apply D1 migrations.
+## Production deployment
 
-The deploy command applies pending remote D1 migrations first, then deploys the Worker. Cloudflare automatically starts a new build when changes are pushed to `main`. GitHub Actions remains responsible only for CI checks; it no longer deploys to Cloudflare.
+### 1. Create the D1 database
 
-## Configure application secrets
+1. Open the [Cloudflare Dashboard](https://dash.cloudflare.com/).
+2. Go to **Workers & Pages → D1 SQL Database → Create database**.
+3. Name the database exactly `skycart-db`.
+4. Copy the database ID shown in the database details.
+5. Open `wrangler.toml` in this repository and replace `REPLACE_WITH_D1_DATABASE_ID` with the copied ID.
+6. Commit and push the change to `main`.
 
-After the first successful deployment, open **Workers & Pages → skycart → Settings → Variables and Secrets** and add these as **Secret** values:
+The Worker expects the D1 binding to be named `DB`; keep that binding name unchanged.
 
-- `ADMIN_PASSWORD` — unique password of at least 20 characters.
-- `SUNSKY_API_KEY` — SUNSKY Open API key.
-- `SUNSKY_API_SECRET` — SUNSKY Open API secret.
+### 2. Connect this repository to Cloudflare
 
-Save the settings. These values remain in Cloudflare and are not committed to GitHub. Attach your custom domain under **Settings → Domains & Routes**. The admin dashboard is at `/admin`.
+1. In Cloudflare, open **Workers & Pages → Create application → Connect to Git**. If the Worker already exists, open its **Builds** settings instead.
+2. Authorize GitHub if prompted.
+3. Select repository `paliparsa/skycart`.
+4. Select `main` as the production branch.
+5. Configure the build settings as follows:
+
+| Setting | Value |
+|---|---|
+| Root directory | `/` |
+| Build command | `npm install && npm run typecheck && npm test` |
+| Deploy command | `npm run deploy:cloudflare` |
+| Build output directory | Leave empty |
+
+Do not use `npm ci`: this repository does not currently include a package lockfile.
+
+The deploy command runs:
+
+1. `wrangler d1 migrations apply skycart-db --remote`
+2. `wrangler deploy`
+
+Make sure the Cloudflare build environment is authorized to deploy Workers and apply migrations to the selected D1 database. Pushes to `main` will then trigger Cloudflare Builds automatically.
+
+### 3. Add application secrets in Cloudflare
+
+After the first successful deployment, open **Workers & Pages → skycart → Settings → Variables and Secrets**. Add the following as **Secret** values (not plain-text variables):
+
+| Secret | Purpose |
+|---|---|
+| `ADMIN_PASSWORD` | Admin login password; use a unique password of at least 20 characters |
+| `SUNSKY_API_KEY` | SUNSKY Open API key |
+| `SUNSKY_API_SECRET` | SUNSKY Open API secret |
+
+Save the settings. These credentials are stored in Cloudflare and are not committed to the repository. Do not add them to the GitHub repository, source code, or build command.
+
+### 4. Add your domain and verify the deployment
+
+1. In the Worker settings, open **Domains & Routes** and attach your domain.
+2. Visit `/api/health` and confirm the Worker and D1 database are available.
+3. Visit `/admin` and sign in with `ADMIN_PASSWORD`.
+4. Check the supplier integration status and run **Sync SUNSKY products**.
+
+## Development and CI
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run checks locally:
+
+```bash
+npm run typecheck
+npm test
+```
+
+Run the Worker locally:
+
+```bash
+npm run dev
+```
+
+GitHub Actions runs type checking and tests on pushes to `main` and pull requests. It does **not** deploy the production Worker and does not need `CLOUDFLARE_ACCOUNT_ID` or `CLOUDFLARE_API_TOKEN` secrets.
+
+Useful scripts:
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the local Wrangler development server |
+| `npm run typecheck` | Run TypeScript checks |
+| `npm test` | Run automated tests |
+| `npm run deploy:cloudflare` | Apply remote D1 migrations, then deploy the Worker |
+| `npm run db:migrate:local` | Apply D1 migrations to the local database |
+| `npm run db:migrate:remote` | Apply D1 migrations to the remote database |
 
 ## Admin and catalogue
 
-Sign in at `/admin` with `ADMIN_PASSWORD`. Use **Sync SUNSKY products** to import the first page. Scheduled catalogue sync runs every 15 minutes. Adjust product markup in the admin panel.
+The admin dashboard is available at `/admin`. Use **Sync SUNSKY products** to import catalogue products. A scheduled sync runs every 15 minutes. Product markup can be adjusted in the admin panel.
 
 ## Orders and payments
 
-Checkout obtains SUNSKY shipping methods and revalidates shipping server-side. Orders remain `pending_payment` until you independently verify payment and select **Confirm paid & submit** in the admin panel. Supplier orders use your SUNSKY account balance (`useBalanceOnly=true`). Ambiguous supplier responses are blocked from automatic retry to reduce duplicate orders; verify the SUNSKY portal before taking further action.
+Checkout retrieves SUNSKY shipping methods and revalidates shipping server-side. New orders remain in `pending_payment` until payment is independently verified and manually confirmed in the admin panel using **Confirm paid & submit**.
 
-No card or crypto payment gateway is enabled. The storefront does not pretend to collect payments.
+Supplier orders use the SUNSKY account balance (`useBalanceOnly=true`). Ensure the supplier account has sufficient funds before submitting. If a supplier response is ambiguous, SkyCart blocks blind retries to reduce duplicate orders; verify the order in the SUNSKY portal before taking further action.
 
-## Important
+**No card or crypto payment gateway is currently enabled.** The storefront does not claim to collect payments automatically.
 
-SUNSKY must enable Open API access for your supplier account. Review product costs, markup, inventory, and shipping options before launch. See `docs/DEPLOYMENT.md`.
+## Requirements and launch notes
+
+- SUNSKY must enable Open API access for your supplier account.
+- Review product costs, markup, inventory, and shipping options before launch.
+- Test shipping quotes and place a small test order before accepting real orders.
+- Keep all application credentials in Cloudflare Worker Secrets.
+
+For the detailed deployment checklist, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
