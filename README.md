@@ -6,18 +6,7 @@ Production deployments run through **Cloudflare Workers Builds**, connected dire
 
 ## Production deployment
 
-### 1. Create the D1 database
-
-1. Open the [Cloudflare Dashboard](https://dash.cloudflare.com/).
-2. Go to **Workers & Pages → D1 SQL Database → Create database**.
-3. Name the database exactly `skycart-db`.
-4. Copy the database ID shown in the database details.
-5. Open `wrangler.toml` in this repository and replace `REPLACE_WITH_D1_DATABASE_ID` with the copied ID.
-6. Commit and push the change to `main`.
-
-The Worker expects the D1 binding to be named `DB`; keep that binding name unchanged.
-
-### 2. Connect this repository to Cloudflare
+### 1. Connect this repository to Cloudflare
 
 1. In Cloudflare, open **Workers & Pages → Create application → Connect to Git**. If the Worker already exists, open its **Builds** settings instead.
 2. Authorize GitHub if prompted.
@@ -34,12 +23,14 @@ The Worker expects the D1 binding to be named `DB`; keep that binding name uncha
 
 Do not use `npm ci`: this repository does not currently include a package lockfile.
 
-The deploy command runs:
+The deploy command runs `scripts/deploy-cloudflare.mjs`, which:
 
-1. `wrangler d1 migrations apply skycart-db --remote`
-2. `wrangler deploy`
+1. Lists your remote D1 databases and looks for `skycart-db`.
+2. Reuses the existing database if found; otherwise creates it with the `DB` binding.
+3. Writes the database UUID into `wrangler.toml` in the build workspace (no manual ID copy or commit is needed).
+4. Applies pending remote migrations, then deploys the Worker.
 
-Make sure the Cloudflare build environment is authorized to deploy Workers and apply migrations to the selected D1 database. Pushes to `main` will then trigger Cloudflare Builds automatically.
+The provisioning step is safe to repeat: it checks for the named database before creating one, so subsequent builds reuse the same database. Make sure the Cloudflare build environment is authorized to manage D1 databases, apply migrations, and deploy Workers. Pushes to `main` will then trigger Cloudflare Builds automatically.
 
 ### 3. Add application secrets in Cloudflare
 
@@ -90,7 +81,7 @@ Useful scripts:
 | `npm run dev` | Start the local Wrangler development server |
 | `npm run typecheck` | Run TypeScript checks |
 | `npm test` | Run automated tests |
-| `npm run deploy:cloudflare` | Apply remote D1 migrations, then deploy the Worker |
+| `npm run deploy:cloudflare` | Create or reuse D1, apply remote migrations, then deploy the Worker |
 | `npm run db:migrate:local` | Apply D1 migrations to the local database |
 | `npm run db:migrate:remote` | Apply D1 migrations to the remote database |
 
