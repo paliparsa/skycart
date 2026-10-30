@@ -82,7 +82,7 @@ async function main() {
     ]);
     const config = await readFile(CONFIG_PATH, "utf8");
     const match = config.match(
-      new RegExp(\`\\\\[\\\\[d1_databases\\\\]\\\\][\\\\s\\\\S]*?database_name\\\\s*=\\\\s*["']\${DATABASE_NAME}["'][\\\\s\\\\S]*?database_id\\\\s*=\\\\s*["']([0-9a-f-]{36})["']\`, "i"),
+      new RegExp(\`\\\\[\\\\[d1_databases\\\\]\\\\][\\s\\\\S]*?database_name\\s*=\\s*["']\${DATABASE_NAME}["'][\\s\\\\S]*?database_id\\s*=\\s*["']([0-9a-f-]{36})["']\`, "i"),
     );
     databaseId = match?.[1] ?? null;
     if (!databaseId) {
