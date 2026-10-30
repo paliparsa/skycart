@@ -153,7 +153,7 @@ async function publicApi(req:Request,env:Env):Promise<Response>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"allow":"GET, POST, PATCH, OPTIONS"}});
  if(path==="/api/health"&&req.method==="GET"){
   try{await env.DB.prepare("SELECT 1").first();return json({ok:true,service:"skycart",database:"ok",supplierConfigured:hasSunsky(env),adminConfigured:!!env.ADMIN_PASSWORD});}
-  catch{return json({ok:false,service:"skycart",database:"unavailable",hint:"Deploy migrations via GitHub Actions."},503);}
+  catch{return json({ok:false,service:"skycart",database:"unavailable",hint:"Check Cloudflare Workers Builds deployment logs and D1 migrations."},503);}
  }
  if(path.startsWith("/api/admin/"))return adminApi(req,env);
  if(path==="/api/products"&&req.method==="GET"){
