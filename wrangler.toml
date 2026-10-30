@@ -11,7 +11,7 @@ not_found_handling = "single-page-application"
 [[d1_databases]]
 binding = "DB"
 database_name = "skycart-db"
-# Create skycart-db once in Cloudflare D1, then replace this with its database ID.
+# The Cloudflare deploy script creates this database when missing and fills in its ID.
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 migrations_dir = "migrations"
 
