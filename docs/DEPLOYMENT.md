@@ -2,14 +2,13 @@
 
 ## One-time setup
 
-1. Create a Cloudflare D1 database named `skycart-db`.
-2. Copy its database ID into `wrangler.toml`, replacing `REPLACE_WITH_D1_DATABASE_ID`, and commit the change.
-3. Connect `paliparsa/skycart` to Cloudflare Workers Builds with production branch `main`.
-4. Set the build command to `npm install && npm run typecheck && npm test`.
-5. Set the deploy command to `npm run deploy:cloudflare`.
-6. Ensure the Cloudflare Git integration can deploy Workers and apply D1 migrations.
-7. After the first successful deploy, add the three application credentials below as Worker Secrets.
-8. Attach your custom domain under **Settings → Domains & Routes**.
+1. Connect `paliparsa/skycart` to Cloudflare Workers Builds with production branch `main`.
+2. Set the build command to `npm install && npm run typecheck && npm test`.
+3. Set the deploy command to `npm run deploy:cloudflare`.
+4. Ensure the Cloudflare build integration is authorized to list and create D1 databases, apply D1 migrations, and deploy Workers.
+5. The first deployment automatically creates `skycart-db` if it does not exist, writes its UUID into the build workspace's `wrangler.toml`, applies migrations, and deploys the Worker. Later deployments reuse the same database.
+6. After the first successful deploy, add the three application credentials below as Worker Secrets.
+7. Attach your custom domain under **Settings → Domains & Routes**.
 
 ## Worker secrets
 
@@ -23,7 +22,7 @@ Never commit credentials or put application secrets in GitHub Actions. Cloudflar
 
 ## Deployment behavior
 
-Cloudflare Workers Builds watches the connected GitHub branch and runs the configured build and deploy commands. The deploy command applies pending remote D1 migrations, then runs Wrangler deployment. GitHub Actions runs CI checks only; it does not deploy or require Cloudflare account credentials.
+Cloudflare Workers Builds watches the connected GitHub branch and runs the configured build and deploy commands. `scripts/deploy-cloudflare.mjs` checks the account for `skycart-db`, creates it only when absent, writes the discovered/created UUID into the temporary build checkout, applies pending remote migrations, and runs `wrangler deploy`. The D1 database ID is not committed back to GitHub; every build resolves it from the Cloudflare account. GitHub Actions runs CI checks only; it does not deploy.
 
 ## Launch checklist
 
