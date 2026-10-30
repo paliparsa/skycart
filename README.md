@@ -30,7 +30,7 @@ The deploy command runs `scripts/deploy-cloudflare.mjs`, which:
 3. Writes the database UUID into `wrangler.toml` in the build workspace (no manual ID copy or commit is needed).
 4. Applies pending remote migrations, then deploys the Worker.
 
-The provisioning step is safe to repeat: it checks for the named database before creating one, so subsequent builds reuse the same database. Make sure the Cloudflare build environment is authorized to manage D1 databases, apply migrations, and deploy Workers. Pushes to `main` will then trigger Cloudflare Builds automatically.
+The provisioning step is safe to repeat: it checks for the named database before creating one, so subsequent builds reuse the same database. Workers Builds creates its own API token by default. Open the token in Cloudflare **My Profile → API Tokens** and ensure it has **D1: Edit** in addition to the Worker deployment permissions; the default token may not include D1 access. Pushes to `main` will then trigger Cloudflare Builds automatically.
 
 ### 3. Add application secrets in Cloudflare
 
