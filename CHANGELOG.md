@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 — 2026-10-30
+
+- Fixed admin login form reset after asynchronous authentication.
+- Added an Admin API Settings panel for SUNSKY credentials, encrypted at rest in D1 using a key derived from the admin password.
+- Added a server-side SUNSKY connection test and retained Worker secrets as fallback credentials.
+
+
 ## 0.5.1 — 2026-10-30
 
 - Restored automatic Cloudflare D1 provisioning for Cloudflare Workers Builds.
