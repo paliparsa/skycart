@@ -242,7 +242,7 @@ async function publicApi(req:Request,env:Env):Promise<Response>{
  }
  const om=path.match(/^\/api\/orders\/([0-9a-f-]{36})$/i);
  if(om&&req.method==="GET"){const o=await env.DB.prepare("SELECT id,status,currency,total_cents,created_at FROM orders WHERE id=?").bind(om[1]).first<any>();return o?json({order:{id:o.id,status:o.status,currency:o.currency,totalCents:o.total_cents,createdAt:o.created_at}}):fail("Order not found.",404);}
- if(path==="/api/integrations/status"&&req.method==="GET")return json({supplierConfigured:hasSunsky(env),adminConfigured:!!env.ADMIN_PASSWORD,liveOrdersEnabled:hasSunsky(env),paymentMode:"manual-admin-confirmation"});
+ if(path==="/api/integrations/status"&&req.method==="GET"){const configured=await sunskyConfigured(env);return json({supplierConfigured:configured,adminConfigured:!!env.ADMIN_PASSWORD,liveOrdersEnabled:configured,paymentMode:"manual-admin-confirmation"});}
  return fail("API route not found.",404);
 }
 export default {
