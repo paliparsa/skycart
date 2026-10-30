@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — 2026-10-30
+
+- Restored automatic Cloudflare D1 provisioning for Cloudflare Workers Builds.
+- Deployment now checks for `skycart-db`, creates it only when missing, and resolves its database UUID without manual configuration.
+- Applies remote D1 migrations before deploying the Worker; repeated builds reuse the existing database.
+- Updated deployment documentation and removed the manual database-ID setup step.
+
 ## 0.5.0 — 2026-10-30
 
 - Switched production deployment from GitHub Actions to Cloudflare Workers Builds connected directly to GitHub.
