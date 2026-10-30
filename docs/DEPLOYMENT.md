@@ -5,7 +5,7 @@
 1. Connect `paliparsa/skycart` to Cloudflare Workers Builds with production branch `main`.
 2. Set the build command to `npm install && npm run typecheck && npm test`.
 3. Set the deploy command to `npm run deploy:cloudflare`.
-4. Ensure the Cloudflare build integration is authorized to list and create D1 databases, apply D1 migrations, and deploy Workers.
+4. In **My Profile → API Tokens**, open the API token used by Workers Builds and ensure it has **D1: Edit** as well as the Worker deployment permissions. The automatically generated default token may not include D1 access.
 5. The first deployment automatically creates `skycart-db` if it does not exist, writes its UUID into the build workspace's `wrangler.toml`, applies migrations, and deploys the Worker. Later deployments reuse the same database.
 6. After the first successful deploy, add the three application credentials below as Worker Secrets.
 7. Attach your custom domain under **Settings → Domains & Routes**.
