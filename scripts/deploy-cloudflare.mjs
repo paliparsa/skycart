@@ -18,7 +18,7 @@ function wrangler(args, { capture = false } = {}) {
       process.stderr.write(result.stderr || "");
       process.stderr.write(result.stdout || "");
     }
-    throw new Error(`wrangler ${args.join(" ")} failed with exit code ${result.status}`);
+    throw new Error(\`wrangler \${args.join(" ")} failed with exit code \${result.status}\`);
   }
   return capture ? result.stdout : "";
 }
@@ -58,22 +58,22 @@ async function writeDatabaseId(databaseId) {
     if (nameMatch?.[1] !== DATABASE_NAME) return section;
     if (/^database_id\\s*=\\s*["'][^"']*["']/m.test(section)) {
       updated = true;
-      return section.replace(/^database_id\\s*=\\s*["'][^"']*["']/m, `database_id = "${databaseId}"`);
+      return section.replace(/^database_id\\s*=\\s*["'][^"']*["']/m, \`database_id = "\${databaseId}"\`);
     }
-    throw new Error(`The ${DATABASE_NAME} D1 binding has no database_id in wrangler.toml.`);
+    throw new Error(\`The \${DATABASE_NAME} D1 binding has no database_id in wrangler.toml.\`);
   }).join("");
 
-  if (!updated) throw new Error(`Could not find the ${DATABASE_NAME} D1 binding in wrangler.toml.`);
+  if (!updated) throw new Error(\`Could not find the \${DATABASE_NAME} D1 binding in wrangler.toml.\`);
   if (next !== config) await writeFile(CONFIG_PATH, next);
 }
 
 async function main() {
-  console.log(`Checking Cloudflare D1 database: ${DATABASE_NAME}`);
+  console.log(\`Checking Cloudflare D1 database: \${DATABASE_NAME}\`);
   const listOutput = wrangler(["d1", "list", "--json"], { capture: true });
   let databaseId = findDatabase(parseJsonOutput(listOutput));
 
   if (!databaseId) {
-    console.log(`D1 database not found. Creating ${DATABASE_NAME}...`);
+    console.log(\`D1 database not found. Creating \${DATABASE_NAME}...\`);
     wrangler([
       "d1", "create", DATABASE_NAME,
       "--update-config",
@@ -82,15 +82,15 @@ async function main() {
     ]);
     const config = await readFile(CONFIG_PATH, "utf8");
     const match = config.match(
-      new RegExp(`\\[\\[d1_databases\\]\\][\\s\\S]*?database_name\\s*=\\s*["']${DATABASE_NAME}["'][\\s\\S]*?database_id\\s*=\\s*["']([0-9a-f-]{36})["']`, "i"),
+      new RegExp(\`\\\\[\\\\[d1_databases\\\\]\\\\][\\\\s\\\\S]*?database_name\\\\s*=\\\\s*["']\${DATABASE_NAME}["'][\\\\s\\\\S]*?database_id\\\\s*=\\\\s*["']([0-9a-f-]{36})["']\`, "i"),
     );
     databaseId = match?.[1] ?? null;
     if (!databaseId) {
       throw new Error("D1 was created, but Wrangler did not write its database_id into wrangler.toml.");
     }
-    console.log(`Created ${DATABASE_NAME} (${databaseId}).`);
+    console.log(\`Created \${DATABASE_NAME} (\${databaseId}).\`);
   } else {
-    console.log(`Found existing ${DATABASE_NAME} (${databaseId}). Reusing it.`);
+    console.log(\`Found existing \${DATABASE_NAME} (\${databaseId}). Reusing it.\`);
   }
 
   await writeDatabaseId(databaseId);
